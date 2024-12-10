@@ -3,7 +3,7 @@ import { PlaitCustomGeometry } from '@plait/draw';
 
 export const DefaultFreehand = {
   strokeColor: DEFAULT_COLOR,
-  strokeWidth: 4,
+  strokeWidth: 2,
 };
 
 export enum FreehandShape {
@@ -15,8 +15,7 @@ export enum FreehandShape {
 
 export const FREEHAND_TYPE = 'freehand';
 
-export interface Freehand
-  extends PlaitCustomGeometry<typeof FREEHAND_TYPE, Point[], FreehandShape> {}
+export type Freehand = PlaitCustomGeometry<typeof FREEHAND_TYPE, Point[], FreehandShape>
 
 export const Freehand = {
   isFreehand: (value: any): value is Freehand => {

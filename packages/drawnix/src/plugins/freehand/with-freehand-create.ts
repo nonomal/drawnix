@@ -2,6 +2,7 @@ import {
   PlaitBoard,
   Point,
   Transforms,
+  distanceBetweenPointAndPoint,
   throttleRAF,
   toHostPoint,
   toViewBoxPoint,
@@ -14,13 +15,15 @@ import { FreehandGenerator } from './freehand.generator';
 export const withFreehandCreate = (board: PlaitBoard) => {
   const { pointerDown, pointerMove, pointerUp, globalPointerUp } = board;
 
-  let isDrawing: boolean = false;
+  let isDrawing = false;
 
   let points: Point[] = [];
 
   const generator = new FreehandGenerator(board);
 
   let temporaryElement: Freehand | null = null;
+
+  let previousScreenPoint: Point | null = null;
 
   const complete = (cancel?: boolean) => {
     if (isDrawing) {
@@ -34,6 +37,7 @@ export const withFreehandCreate = (board: PlaitBoard) => {
     temporaryElement = null;
     isDrawing = false;
     points = [];
+    previousScreenPoint = null;
   };
 
   board.pointerDown = (event: PointerEvent) => {
@@ -43,28 +47,35 @@ export const withFreehandCreate = (board: PlaitBoard) => {
       isDrawing = true;
       const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
       points.push(point);
+      previousScreenPoint = [event.x, event.y];
     }
     pointerDown(event);
   };
 
   board.pointerMove = (event: PointerEvent) => {
-    if (isDrawing) {
-      throttleRAF(board, 'with-freehand-creation', () => {
-        generator?.destroy();
-        if (isDrawing) {
-          const newPoint = toViewBoxPoint(
-            board,
-            toHostPoint(board, event.x, event.y)
-          );
-          points.push(newPoint);
-          const pointer = PlaitBoard.getPointer(board) as FreehandShape;
-          temporaryElement = createFreehandElement(pointer, points);
-          generator.processDrawing(
-            temporaryElement,
-            PlaitBoard.getElementActiveHost(board)
-          );
-        }
-      });
+    if (isDrawing && previousScreenPoint) {
+      const distance = distanceBetweenPointAndPoint(
+        previousScreenPoint[0],
+        previousScreenPoint[1],
+        event.x,
+        event.y
+      );
+      if (distance <= 0.5) {
+        return;
+      }
+      previousScreenPoint = [event.x, event.y];
+      generator?.destroy();
+      const newPoint = toViewBoxPoint(
+        board,
+        toHostPoint(board, event.x, event.y)
+      );
+      points.push(newPoint);
+      const pointer = PlaitBoard.getPointer(board) as FreehandShape;
+      temporaryElement = createFreehandElement(pointer, points);
+      generator.processDrawing(
+        temporaryElement,
+        PlaitBoard.getElementActiveHost(board)
+      );
       return;
     }
 

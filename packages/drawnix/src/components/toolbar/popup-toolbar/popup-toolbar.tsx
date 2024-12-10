@@ -42,11 +42,9 @@ import { PopupFontColorButton } from './font-color-button';
 import { PopupStrokeButton } from './stroke-button';
 import { PopupFillButton } from './fill-button';
 import { isWhite, removeHexAlpha } from '../../../utils/color';
-import { TRANSPARENT } from '../../../constants/color';
+import { NO_COLOR } from '../../../constants/color';
 
-export type PopupToolbarProps = {};
-
-export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
+export const PopupToolbar = () => {
   const board = useBoard();
   const selectedElements = getSelectedElements(board);
   const [movingOrDragging, setMovingOrDragging] = useState(false);
@@ -197,18 +195,6 @@ export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
                       getMemorizeKey,
                     }
                   );
-                  const selectedElements = getSelectedElements(board);
-
-                  if (selectedElements.length) {
-                    selectedElements.forEach((element) => {
-                      const path = PlaitBoard.findPath(board, element);
-                      Transforms.setNode(
-                        board,
-                        { branchColor: getColorPropertyValue(selectedColor) },
-                        path
-                      );
-                    });
-                  }
                 }}
               >
                 <label
@@ -354,7 +340,7 @@ export const hasTextProperty = (board: PlaitBoard, element: PlaitElement) => {
 };
 
 export const getColorPropertyValue = (color: string) => {
-  if (color === TRANSPARENT) {
+  if (color === NO_COLOR) {
     return null;
   } else {
     return color;
