@@ -49,17 +49,17 @@ export const withFreehand = (board: PlaitBoard) => {
     return isRectangleHit(element, selection);
   };
 
-  board.isHit = (element, point) => {
+  board.isHit = (element, point, isStrict?: boolean) => {
     if (Freehand.isFreehand(element)) {
       return isHitFreehand(board, element, point);
     }
-    return isHit(element, point);
+    return isHit(element, point, isStrict);
   };
 
   board.getOneHitElement = (elements) => {
     const isAllFreehand = elements.every((item) => Freehand.isFreehand(item));
     if (isAllFreehand) {
-      return getHitDrawElement(board, elements);
+      return getHitDrawElement(board, elements as Freehand[]);
     }
     return getOneHitElement(elements);
   };

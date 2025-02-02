@@ -1,5 +1,5 @@
 import { DEFAULT_COLOR } from '@plait/core';
-import { TRANSPARENT, WHITE } from '../constants/color';
+import { TRANSPARENT, NO_COLOR, WHITE } from '../constants/color';
 
 // 将 0-100 的透明度转换为 0-255 的整数
 function transparencyToAlpha255(transparency: number) {
@@ -36,6 +36,13 @@ export function hexAlphaToOpacity(hexColor: string) {
   return 100 - alpha255ToTransparency(alpha);
 }
 
+export function isValidColor(color: string) {
+  if (color === 'none') {
+    return false;
+  }
+  return true;
+}
+
 export function removeHexAlpha(hexColor: string) {
   // 移除可能存在的 # 前缀，并转换为大写
   const hexColorClone = hexColor.replace(/^#/, '').toUpperCase();
@@ -60,6 +67,18 @@ export function isTransparent(color?: string) {
 
 export function isWhite(color?: string) {
   return color === WHITE;
+}
+
+export function isFullyTransparent(opacity: number) {
+  return opacity === 0;
+}
+
+export function isFullyOpaque(opacity: number) {
+  return opacity === 100;
+}
+
+export function isNoColor(value: string) {
+  return value === NO_COLOR;
 }
 
 export function isDefaultStroke(color?: string) {

@@ -28,6 +28,7 @@ import { withReact } from './plugins/with-react';
 import { withImage, withText } from '@plait/common';
 import { BoardContext, BoardContextValue } from './hooks/use-board';
 import React from 'react';
+import { withPinchZoom } from './plugins/with-pinch-zoom-plugin';
 
 export type WrapperProps = {
   value: PlaitElement[];
@@ -80,10 +81,36 @@ export const Wrapper: React.FC<WrapperProps> = ({
       onChange(data);
     }
 
-    if (
-      board.operations.some((o) => PlaitOperation.isSetViewportOperation(o))
-    ) {
-      onViewportChange?.(board.viewport);
+    const hasSelectionChanged = board.operations.some((o) =>
+      PlaitOperation.isSetSelectionOperation(o)
+    );
+    const hasViewportChanged = board.operations.some((o) =>
+      PlaitOperation.isSetViewportOperation(o)
+    );
+    const hasThemeChanged = board.operations.some((o) =>
+      PlaitOperation.isSetThemeOperation(o)
+    );
+    const hasChildrenChanged = board.operations.length > 0 && !board.operations.every(
+      (o) =>
+        PlaitOperation.isSetSelectionOperation(o) ||
+        PlaitOperation.isSetViewportOperation(o) ||
+        PlaitOperation.isSetThemeOperation(o)
+    );
+
+    if (onValueChange && hasChildrenChanged) {
+      onValueChange(board.children);
+    }
+
+    if (onSelectionChange && hasSelectionChanged) {
+      onSelectionChange(board.selection);
+    }
+
+    if (onViewportChange && hasViewportChanged) {
+      onViewportChange(board.viewport);
+    }
+
+    if (onThemeChange && hasThemeChanged) {
+      onThemeChange(board.theme.themeColorMode);
     }
 
     setContext((prevContext) => ({
@@ -107,10 +134,10 @@ export const Wrapper: React.FC<WrapperProps> = ({
     });
 
     return () => {
-      BOARD_TO_ON_CHANGE.set(board, () => {});
-      BOARD_TO_AFTER_CHANGE.set(board, () => {});
+      BOARD_TO_ON_CHANGE.delete(board);
+      BOARD_TO_AFTER_CHANGE.delete(board);
     };
-  }, [board, onContextChange]);
+  }, [board]);
 
   return (
     <BoardContext.Provider value={context}>{children}</BoardContext.Provider>
@@ -146,6 +173,7 @@ const initializeBoard = (
   plugins.forEach((plugin: any) => {
     board = plugin(board);
   });
+  withPinchZoom(board);
 
   if (viewport) {
     board.viewport = viewport;

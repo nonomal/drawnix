@@ -19,14 +19,23 @@ import {
   PlaitPointerType,
 } from '@plait/core';
 import { MindPointerType } from '@plait/mind';
-import { DrawnixPointerType } from '../../drawnix';
 import { BoardCreationMode, setCreationMode } from '@plait/common';
-import { ArrowLineShape, BasicShapes, DrawPointerType } from '@plait/draw';
+import {
+  ArrowLineShape,
+  BasicShapes,
+  DrawPointerType,
+  FlowchartSymbols,
+} from '@plait/draw';
 import { ShapePicker } from '../shape-picker';
 import { ArrowPicker } from '../arrow-picker';
 import { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 import { FreehandShape } from '../../plugins/freehand/type';
+import {
+  DrawnixPointerType,
+  useDrawnix,
+  useSetPointer,
+} from '../../hooks/use-drawnix';
 
 export enum PopupKey {
   'shape' = 'shape',
@@ -87,23 +96,22 @@ export const BUTTONS: AppToolButtonProps[] = [
   },
 ];
 
-export type CreationToolbarProps = {
-  setPointer: (pointer: DrawnixPointerType) => void;
-};
-
 // TODO provider by plait/draw
 export const isArrowLinePointer = (board: PlaitBoard) => {
   return Object.keys(ArrowLineShape).includes(board.pointer);
 };
 
 export const isShapePointer = (board: PlaitBoard) => {
-  return Object.keys(BasicShapes).includes(board.pointer);
+  return (
+    Object.keys(BasicShapes).includes(board.pointer) ||
+    Object.keys(FlowchartSymbols).includes(board.pointer)
+  );
 };
 
-export const CreationToolbar: React.FC<CreationToolbarProps> = ({
-  setPointer,
-}) => {
+export const CreationToolbar = () => {
   const board = useBoard();
+  const { appState } = useDrawnix();
+  const setPointer = useSetPointer();
   const container = PlaitBoard.getBoardContainer(board);
 
   const [arrowOpen, setArrowOpen] = useState(false);
@@ -133,6 +141,9 @@ export const CreationToolbar: React.FC<CreationToolbarProps> = ({
     >
       <Stack.Row gap={1}>
         {BUTTONS.map((button, index) => {
+          if (appState.isMobile && button.pointer === PlaitPointerType.hand) {
+            return <></>;
+          }
           if (button.popupKey === PopupKey.shape) {
             return (
               <Popover

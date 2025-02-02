@@ -2,18 +2,18 @@ import Stack from '../../stack';
 import { FontColorIcon } from '../../icons';
 import {
   ATTACHED_ELEMENT_CLASS_NAME,
+  getRectangleByElements,
   getSelectedElements,
   isDragging,
   isMovingElements,
   isSelectionMoving,
-  Path,
   PlaitBoard,
   PlaitElement,
-  SELECTION_RECTANGLE_BOUNDING_CLASS_NAME,
-  SELECTION_RECTANGLE_CLASS_NAME,
-  Transforms,
+  RectangleClient,
+  toHostPointFromViewBoxPoint,
+  toScreenPointFromHostPoint,
 } from '@plait/core';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBoard } from '@plait/react-board';
 import { flip, offset, useFloating } from '@floating-ui/react';
 import { Island } from '../../island';
@@ -24,29 +24,22 @@ import {
 } from '@plait/mind';
 import './popup-toolbar.scss';
 import {
-  DrawTransforms,
-  getMemorizeKey,
-  getSelectedTableCellsEditor,
   getStrokeColorByElement as getStrokeColorByDrawElement,
-  isDrawElementClosed,
+  isClosedCustomGeometry,
+  isClosedDrawElement,
   isDrawElementsIncludeText,
   PlaitDrawElement,
 } from '@plait/draw';
-import { CustomText, PropertyTransforms } from '@plait/common';
-import {
-  getTextMarksByElement,
-  PlaitMarkEditor,
-  TextTransforms,
-} from '@plait/text-plugins';
+import { CustomText } from '@plait/common';
+import { getTextMarksByElement } from '@plait/text-plugins';
 import { PopupFontColorButton } from './font-color-button';
 import { PopupStrokeButton } from './stroke-button';
 import { PopupFillButton } from './fill-button';
 import { isWhite, removeHexAlpha } from '../../../utils/color';
-import { TRANSPARENT } from '../../../constants/color';
+import { NO_COLOR } from '../../../constants/color';
+import { Freehand } from '../../../plugins/freehand/type';
 
-export type PopupToolbarProps = {};
-
-export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
+export const PopupToolbar = () => {
   const board = useBoard();
   const selectedElements = getSelectedElements(board);
   const [movingOrDragging, setMovingOrDragging] = useState(false);
@@ -92,27 +85,32 @@ export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
   }
   useEffect(() => {
     if (open) {
-      let selectionG = PlaitBoard.getBoardContainer(board).querySelector(
-        `.${SELECTION_RECTANGLE_BOUNDING_CLASS_NAME}`
-      );
-      if (!selectionG) {
-        selectionG = PlaitBoard.getBoardContainer(board).querySelector(
-          `.${SELECTION_RECTANGLE_CLASS_NAME}`
+      const hasSelected = selectedElements.length > 0;
+      if (!movingOrDragging && hasSelected) {
+        const elements = getSelectedElements(board);
+        const rectangle = getRectangleByElements(board, elements, false);
+        const [start, end] = RectangleClient.getPoints(rectangle);
+        const screenStart = toScreenPointFromHostPoint(
+          board,
+          toHostPointFromViewBoxPoint(board, start)
         );
-      }
-      if (selectionG) {
-        const rect = selectionG?.getBoundingClientRect();
+        const screenEnd = toScreenPointFromHostPoint(
+          board,
+          toHostPointFromViewBoxPoint(board, end)
+        );
+        const width = screenEnd[0] - screenStart[0];
+        const height = screenEnd[1] - screenStart[1];
         refs.setPositionReference({
           getBoundingClientRect() {
             return {
-              width: rect.width,
-              height: rect.height,
-              x: rect.x,
-              y: rect.y,
-              top: rect.top,
-              left: rect.left,
-              right: rect.right,
-              bottom: rect.bottom,
+              width,
+              height,
+              x: screenStart[0],
+              y: screenStart[1],
+              top: screenStart[1],
+              left: screenStart[0],
+              right: screenStart[0] + width,
+              bottom: screenStart[1] + height,
             };
           },
         });
@@ -172,14 +170,6 @@ export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
                 fontColorIcon={
                   <FontColorIcon currentColor={state.marks?.color} />
                 }
-                onSelect={(selectedColor: string) => {
-                  TextTransforms.setTextColor(
-                    board,
-                    getColorPropertyValue(selectedColor),
-                    undefined,
-                    getSelectedTableCellsEditor(board)
-                  );
-                }}
               ></PopupFontColorButton>
             )}
             {state.hasStroke && (
@@ -189,27 +179,6 @@ export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
                 currentColor={state.strokeColor}
                 title={`Stroke`}
                 hasStrokeStyle={state.hasStrokeStyle || false}
-                onColorSelect={(selectedColor: string) => {
-                  PropertyTransforms.setStrokeColor(
-                    board,
-                    getColorPropertyValue(selectedColor),
-                    {
-                      getMemorizeKey,
-                    }
-                  );
-                  const selectedElements = getSelectedElements(board);
-
-                  if (selectedElements.length) {
-                    selectedElements.forEach((element) => {
-                      const path = PlaitBoard.findPath(board, element);
-                      Transforms.setNode(
-                        board,
-                        { branchColor: getColorPropertyValue(selectedColor) },
-                        path
-                      );
-                    });
-                  }
-                }}
               >
                 <label
                   className={classNames('stroke-label', 'color-label')}
@@ -223,31 +192,6 @@ export const PopupToolbar: React.FC<PopupToolbarProps> = ({}) => {
                 key={2}
                 currentColor={state.fill}
                 title={`Fill Color`}
-                onColorSelect={(selectedColor: string) => {
-                  PropertyTransforms.setFillColor(board, selectedColor, {
-                    getMemorizeKey,
-                    callback: (element: PlaitElement, path: Path) => {
-                      const tableElement =
-                        PlaitDrawElement.isElementByTable(element);
-                      if (tableElement) {
-                        DrawTransforms.setTableFill(
-                          board,
-                          element,
-                          getColorPropertyValue(selectedColor),
-                          path
-                        );
-                      } else {
-                        if (isDrawElementClosed(element as PlaitDrawElement)) {
-                          Transforms.setNode(
-                            board,
-                            { fill: getColorPropertyValue(selectedColor) },
-                            path
-                          );
-                        }
-                      }
-                    },
-                  });
-                }}
               >
                 <label
                   className={classNames('fill-label', 'color-label', {
@@ -281,14 +225,7 @@ export const getDrawElementState = (
   board: PlaitBoard,
   element: PlaitDrawElement
 ) => {
-  let marks: Omit<CustomText, 'text'>;
-  const selectedTableCellsEditor = getSelectedTableCellsEditor(board);
-  if (selectedTableCellsEditor?.length) {
-    const editor = selectedTableCellsEditor[0];
-    marks = editor && PlaitMarkEditor.getMarks(editor);
-  } else {
-    marks = getTextMarksByElement(element);
-  }
+  const marks: Omit<CustomText, 'text'> = getTextMarksByElement(element);
   return {
     fill: element.fill,
     strokeColor: getStrokeColorByDrawElement(board, element),
@@ -308,12 +245,15 @@ export const hasFillProperty = (board: PlaitBoard, element: PlaitElement) => {
   if (MindElement.isMindElement(board, element)) {
     return true;
   }
+  if (isClosedCustomGeometry(board, element)) {
+    return true;
+  }
   if (PlaitDrawElement.isDrawElement(element)) {
     return (
       PlaitDrawElement.isShapeElement(element) &&
       !PlaitDrawElement.isImage(element) &&
       !PlaitDrawElement.isText(element) &&
-      isDrawElementClosed(element)
+      isClosedDrawElement(element)
     );
   }
   return false;
@@ -321,6 +261,9 @@ export const hasFillProperty = (board: PlaitBoard, element: PlaitElement) => {
 
 export const hasStrokeProperty = (board: PlaitBoard, element: PlaitElement) => {
   if (MindElement.isMindElement(board, element)) {
+    return true;
+  }
+  if (Freehand.isFreehand(element)) {
     return true;
   }
   if (PlaitDrawElement.isDrawElement(element)) {
@@ -354,7 +297,7 @@ export const hasTextProperty = (board: PlaitBoard, element: PlaitElement) => {
 };
 
 export const getColorPropertyValue = (color: string) => {
-  if (color === TRANSPARENT) {
+  if (color === NO_COLOR) {
     return null;
   } else {
     return color;

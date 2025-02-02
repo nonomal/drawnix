@@ -1,17 +1,13 @@
 import { PlaitBoard } from '@plait/core';
 import { isValidDrawnixData } from './json';
 import { MIME_TYPES } from '../constants';
-import { ValueOf } from '../utility-types';
+import { ValueOf } from '../utils/utility-types';
 
 export const loadFromBlob = async (board: PlaitBoard, blob: Blob | File) => {
   const contents = await parseFileContents(blob);
   let data;
   try {
-    try {
-      data = JSON.parse(contents);
-    } catch (error: any) {
-      throw error;
-    }
+    data = JSON.parse(contents);
     if (isValidDrawnixData(data)) {
       return data;
     }
